@@ -12,15 +12,16 @@ using namespace WINOGRAD_KERNEL;
 using namespace std;
 
 const int CIN = 1;
-const int COUT = 1;
+const int COUT = 32;
 
-const int IH = 5;
-const int IW = 5;
+const int IH = 25;
+const int IW = 25;
 
 const int PRECISE = 8;
 
 #define INPUT_INTEGER 1
 #define KERNEL_INTEGER 1
+#define DATA_PRINT 0
 
 void testWinograd();
 
@@ -147,33 +148,72 @@ void testWinograd() {
 		tbias
 	);
 
-
-	PUBLIC_TOOL::printTensor(input, 1, tiC, tiW, tiW, "input");
-	PUBLIC_TOOL::printTensor(kernel, 1, tiC, tkH, tkW, "kernel");
+#if DATA_PRINT
+	PUBLIC_TOOL::print_tensor(input, 1, tiC, tiW, tiW, "input");
+	PUBLIC_TOOL::print_tensor(kernel, 1, tiC, tkH, tkW, "kernel");
+#endif
 
 	float* buffer=new float [toH*toW*tiC*100];// enough buffer, used as medium buffer flowing through each layer
 
-	//std::shared_ptr<float> out = std::shared_ptr<Dtype>(new Dtype[m_oH*m_oW*conv_out_channels_]);
+	double start, end;
+	const float* output;
+	int loop_num = 1000;
 
-	const float* output = wt8X8.get_inference_cpu(input, kernel, (float*)buffer); //
+	//wt8x8
+	start = PUBLIC_TOOL::get_current_time();
+	for(int i=0; i<loop_num; i++) {
+		output = wt8X8.get_inference_cpu(input, kernel, (float*)buffer);
+	}
+	end = PUBLIC_TOOL::get_current_time();
+    PUBLIC_TOOL::benchmark("wt8x8", start, end, loop_num);
 	cout << "the first three elements and the last one of the wt8x8 result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
-	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "wt8x8");
+#if DATA_PRINT	
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "wt8x8");
+#endif
 
-	output = wt6x6.get_inference_cpu(input, kernel, (float*)buffer); //
+	//wt6x6
+	start = PUBLIC_TOOL::get_current_time();
+	for(int i=0; i<loop_num; i++) {
+		output = wt6x6.get_inference_cpu(input, kernel, (float*)buffer);
+	}
+	end = PUBLIC_TOOL::get_current_time();
+    PUBLIC_TOOL::benchmark("wt6x6", start, end, loop_num);
 	cout << "the first three elements and the last one of the wt6x6 result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
-	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "wt6x6");
+#if DATA_PRINT	
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "wt6x6");
+#endif
 
-	output = direct.get_inference_cpu(input, kernel, (float*)buffer); //
+
+	//direct
+	start = PUBLIC_TOOL::get_current_time();
+	for(int i=0; i<loop_num; i++) {
+		output = direct.get_inference_cpu(input, kernel, (float*)buffer);
+	}
+	end = PUBLIC_TOOL::get_current_time();
+    PUBLIC_TOOL::benchmark("direct", start, end, loop_num);
 	cout << "the first three elements and the last one of the direct result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
-	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "direct");
+#if DATA_PRINT	
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "direct");
+#endif
 
-	output = simd.get_inference_cpu(input, kernel, (float*)buffer); //
+
+	//simd
+	start = PUBLIC_TOOL::get_current_time();
+	for(int i=0; i<loop_num; i++) {
+		output = simd.get_inference_cpu(input, kernel, (float*)buffer);
+	}
+	end = PUBLIC_TOOL::get_current_time();
+    PUBLIC_TOOL::benchmark("simd", start, end, loop_num);
+	simd.clear();
+	output = simd.get_inference_cpu(input, kernel, (float*)buffer);
 	cout << "the first three elements and the last one of the simd result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
-	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "simd");
+#if DATA_PRINT	
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "simd");
+#endif
 
 	delete[] buffer; 
 }

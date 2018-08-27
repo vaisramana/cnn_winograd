@@ -5,6 +5,7 @@
 #include <iostream>
 #include "mathlib.h"
 #include <assert.h>
+#include <sys/time.h>
 
 namespace PUBLIC_TOOL{
 
@@ -40,7 +41,7 @@ namespace PUBLIC_TOOL{
 			 ldb, beta, C, N);
 	 }
 
-	 void printTensor(const float* ptr, const int N, const int C, const int H, const int W, const char* strings) {
+	 void print_tensor(const float* ptr, const int N, const int C, const int H, const int W, const char* strings) {
 		 assert(N == 1);
 
 		 for(int c_idx = 0; c_idx < C; c_idx++) {
@@ -53,6 +54,19 @@ namespace PUBLIC_TOOL{
 			}
 		 }
 	 }
+
+	double get_current_time()
+	{
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+	}
+
+	void benchmark(const char* strings, double start, double end, int loop_num)
+  	{
+      printf("\n\n\n%-20s %8.2lfms", strings,  (end - start)/loop_num);
+      printf("\n");
+  	}
 
 
 };

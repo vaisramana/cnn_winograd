@@ -4,6 +4,7 @@
 #include <memory>
 #include "tool.h"
 #include <assert.h>
+#include <cstring>
 
 // default 3x3
 // /const int KERNEL_SIZE = 3;
@@ -208,6 +209,10 @@ namespace SIMD_KERNEL
 
 
 			return  m_output;
+		}
+
+		void clear() {
+			memset(m_output, 0, sizeof(Dtype)*m_oH*m_oW*conv_out_channels_);
 		}
 
 
