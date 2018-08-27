@@ -14,8 +14,8 @@ using namespace std;
 const int CIN = 1;
 const int COUT = 32;
 
-const int IH = 25;
-const int IW = 25;
+const int IH = 128;
+const int IW = 128;
 
 const int PRECISE = 8;
 
@@ -23,24 +23,31 @@ const int PRECISE = 8;
 #define KERNEL_INTEGER 1
 #define DATA_PRINT 0
 
-void testWinograd();
+void testWinograd(int inH, int inW, int loop_num);
 
-int main() {
+int main(int argc, const char * argv[])  {
 
 
 	WINOGRAD_KERNEL::winograd2D_initialize();
 
-	testWinograd();
+	if(argc == 4) {
+		printf("profiling H %d W %d loop %d\n", atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+		testWinograd(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+	}
+	else {
+		testWinograd(IH, IW, 1);
+	}
+	
 
 	return 0;
 }
 
-void testWinograd() {
+void testWinograd(int inH, int inW, int loop_num) {
 
 	//int batch_size = 1;
 
-	int tiH = IH;
-	int tiW = IW;
+	int tiH = inH;
+	int tiW = inW;
 
 	int tkW = 3;
 	int tkH = 3;
@@ -157,8 +164,8 @@ void testWinograd() {
 
 	double start, end;
 	const float* output;
-	int loop_num = 1000;
 
+#ifndef __aarch64__
 	//wt8x8
 	start = PUBLIC_TOOL::get_current_time();
 	for(int i=0; i<loop_num; i++) {
@@ -166,8 +173,6 @@ void testWinograd() {
 	}
 	end = PUBLIC_TOOL::get_current_time();
     PUBLIC_TOOL::benchmark("wt8x8", start, end, loop_num);
-	cout << "the first three elements and the last one of the wt8x8 result:" << endl;
-	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 #if DATA_PRINT	
 	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "wt8x8");
 #endif
@@ -179,12 +184,10 @@ void testWinograd() {
 	}
 	end = PUBLIC_TOOL::get_current_time();
     PUBLIC_TOOL::benchmark("wt6x6", start, end, loop_num);
-	cout << "the first three elements and the last one of the wt6x6 result:" << endl;
-	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 #if DATA_PRINT	
 	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "wt6x6");
 #endif
-
+#endif
 
 	//direct
 	start = PUBLIC_TOOL::get_current_time();
@@ -193,8 +196,6 @@ void testWinograd() {
 	}
 	end = PUBLIC_TOOL::get_current_time();
     PUBLIC_TOOL::benchmark("direct", start, end, loop_num);
-	cout << "the first three elements and the last one of the direct result:" << endl;
-	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 #if DATA_PRINT	
 	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "direct");
 #endif
@@ -209,8 +210,6 @@ void testWinograd() {
     PUBLIC_TOOL::benchmark("simd", start, end, loop_num);
 	simd.clear();
 	output = simd.get_inference_cpu(input, kernel, (float*)buffer);
-	cout << "the first three elements and the last one of the simd result:" << endl;
-	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 #if DATA_PRINT	
 	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "simd");
 #endif

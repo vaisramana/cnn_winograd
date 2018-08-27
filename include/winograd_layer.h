@@ -186,7 +186,7 @@ namespace WINOGRAD_KERNEL
 
 			// transform weights to Winograd domain
 			if (!m_winogradWeight) m_winogradWeight = new Dtype[conv_in_channels_*conv_out_channels_*tile_h_in_*tile_w_in_];
-
+#ifndef __aarch64__
 			PUBLIC_TOOL::dlm_cpu_gemm(CblasNoTrans, CblasTrans,
 				tile_h_in_*tile_w_in_, (conv_in_channels_ / m_group_)*conv_out_channels_, m_kH*m_kW,
 				(Dtype)1,
@@ -194,7 +194,7 @@ namespace WINOGRAD_KERNEL
 				m_weightOrg,
 				(Dtype)0,
 				m_winogradWeight);			
-
+#endif
 		}
 
 		//template <typename Dtype>
@@ -207,14 +207,14 @@ namespace WINOGRAD_KERNEL
 			int M = this->conv_in_channels_*ntiles_h_*ntiles_w_;
 
 			if (!m_winogradInput) m_winogradInput = new Dtype[tile_h_in_*tile_w_in_*M];
-
+#ifndef __aarch64__
 			PUBLIC_TOOL::dlm_cpu_gemm(CblasTrans, CblasTrans,
 				tile_h_in_*tile_w_in_, M, tile_h_in_*tile_w_in_,
 				(Dtype)1,
 				Winograd_Kron::getInstance(m_alg, WINOGRAD_B)->get().get(),
 				col_buff,
 				(Dtype)0, this->m_winogradInput);
-
+#endif
 		}
 
 		void winograd_conv() {
@@ -222,12 +222,14 @@ namespace WINOGRAD_KERNEL
 			// Convolution in Winograd domain
 			for (int j = 0; j < tile_h_in_*tile_w_in_; ++j) {
 				for (int g = 0; g < this->m_group_; ++g) {
+#ifndef __aarch64__					
 					PUBLIC_TOOL::dlm_cpu_gemm(CblasNoTrans, CblasNoTrans,
 						this->conv_out_channels_ / this->m_group_, ntiles_h_*ntiles_w_, this->conv_in_channels_ / this->m_group_,
 						(Dtype)1,
 						m_winogradWeight + (j*this->m_group_ + g)*(this->conv_out_channels_ / this->m_group_)*(this->conv_in_channels_ / this->m_group_),
 						m_winogradInput + (j*this->m_group_ + g)*(this->conv_in_channels_ / this->m_group_)*ntiles_h_*ntiles_w_,
 						(Dtype)0, m_col_buff + (j*this->m_group_ + g)*(this->conv_out_channels_ / this->m_group_)*ntiles_h_*ntiles_w_);
+#endif				
 				}
 			}
 			// col_buff has (tile_h_in*tile_w_in) x (conv_out_channels) x (ntiles_h*ntiles_w)
@@ -237,13 +239,13 @@ namespace WINOGRAD_KERNEL
 		void trans2spatial(Dtype *data) {
 
 			Dtype *winogradRes = new Dtype[this->conv_out_channels_*ntiles_h_*ntiles_w_*tile_h_out_*tile_w_out_];
-
+#ifndef __aarch64__
 			PUBLIC_TOOL::dlm_cpu_gemm(CblasTrans, CblasNoTrans,
 				this->conv_out_channels_*ntiles_h_*ntiles_w_, tile_h_out_*tile_w_out_, tile_h_in_*tile_w_in_,
 				(Dtype)1, m_col_buff,
 				Winograd_Kron::getInstance(m_alg, WINOGRAD_A)->get().get(),
 				(Dtype)0, winogradRes);
-
+#endif
 			winograd_output_col2im_cpu(winogradRes, data);
 
 			delete[] winogradRes;

@@ -21,6 +21,7 @@ namespace PUBLIC_TOOL{
 		else return b;
 	}
 
+#ifndef __aarch64__
 	 void dlm_cpu_gemm(const CBLAS_TRANSPOSE TransA,
 		const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
 		const float alpha, const float* A, const float* B, const float beta,
@@ -40,6 +41,7 @@ namespace PUBLIC_TOOL{
 		 cblas_dgemm(CblasRowMajor, TransA, TransB, M, N, K, alpha, A, lda, B,
 			 ldb, beta, C, N);
 	 }
+#endif
 
 	 void print_tensor(const float* ptr, const int N, const int C, const int H, const int W, const char* strings) {
 		 assert(N == 1);
