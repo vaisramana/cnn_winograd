@@ -52,6 +52,7 @@ namespace WINOGRAD_KERNEL
 
 		Dtype* m_winogradWeight; // support NCHW storage
 		Dtype* m_winogradInput;
+		Dtype* m_output;
 
 		Dtype* m_col_buff;//buffer
 
@@ -89,6 +90,8 @@ namespace WINOGRAD_KERNEL
 			m_oW = (m_iW + m_pad * 2 - m_kW) / m_sW + 1;
 			m_oH = (m_iH + m_pad * 2 - m_kH) / m_sH + 1;
 
+			m_output = new Dtype [m_oH*m_oW*conv_out_channels_];
+
 			if (alg == WT_8X8_F_6X6_3X3) {
 
 				tile_h_in_ = 8;
@@ -113,19 +116,30 @@ namespace WINOGRAD_KERNEL
 				ntiles_w_ = (PUBLIC_TOOL::max(m_iW + m_pad - tile_w_in_ + 1, m_oW) + tile_w_out_ - 1) / tile_w_out_;
 
 			}
+			else if (alg == WT_8X8_F_4X4_5X5) {
+
+				tile_h_in_ = 8;
+				tile_w_in_ = 8; /* input tile size */
+
+				tile_h_out_ = tile_h_in_ - m_kH + 1;
+				tile_w_out_ = tile_w_in_ - m_kW + 1; /* output tile size */
+
+				ntiles_h_ = (PUBLIC_TOOL::max(m_iH + m_pad - tile_h_in_ + 1, m_oH) + tile_h_out_ - 1) / tile_h_out_;
+				ntiles_w_ = (PUBLIC_TOOL::max(m_iW + m_pad - tile_w_in_ + 1, m_oW) + tile_w_out_ - 1) / tile_w_out_;
+
+			}
 			else throw("convolution algorithm error!");
 
 		}
 
 		//template <typename Dtype>
-		const std::shared_ptr<Dtype> get_inference_cpu(Dtype* data, const Dtype* par, Dtype* col_buff) {
+		const Dtype* get_inference_cpu(Dtype* data, const Dtype* par, Dtype* col_buff) {
 
 			m_inputOrg = data;
 			m_weightOrg = par;
 			m_col_buff = col_buff;
 
 
-			std::shared_ptr<Dtype> resOut = std::shared_ptr<Dtype>(new Dtype[m_oH*m_oW*conv_out_channels_]);
 
 			//trans weight to winograd domain
 			trans_weight2wiongrad();
@@ -142,7 +156,7 @@ namespace WINOGRAD_KERNEL
 
 
 				// Transform back to time domain	
-				trans2spatial(resOut.get() + n*this->m_top_dim_);
+				trans2spatial(m_output + n*this->m_top_dim_);
 
 				//bias
 				if (this->m_bias) {
@@ -151,11 +165,11 @@ namespace WINOGRAD_KERNEL
 
 					const Dtype* bias = &par[base];
 
-					this->forward_cpu_bias(resOut.get() + n * this->m_top_dim_, bias);
+					this->forward_cpu_bias(m_output + n * this->m_top_dim_, bias);
 				}
 			}
 
-			return  resOut;
+			return  m_output;
 		}
 
 
@@ -260,6 +274,10 @@ namespace WINOGRAD_KERNEL
 									col_buff[(((c*ntiles_h_ + tile_h)*ntiles_w_ + tile_w)*tile_h_in_ + y)*tile_w_in_ + x] =
 										data[(c*height + in_y)*width + in_x];
 								}
+								//printf("c %d tile_h %d tile_w %d y %d x %d in_y %d in_x %d, in_idx %d out_idx %d\n", 
+								//		c, tile_h, tile_w, y, x, in_y, in_x,
+								//		(((c*ntiles_h_ + tile_h)*ntiles_w_ + tile_w)*tile_h_in_ + y)*tile_w_in_ + x,
+								//		(c*height + in_y)*width + in_x);
 							}
 						}
 

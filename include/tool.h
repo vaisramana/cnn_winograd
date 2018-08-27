@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include "mathlib.h"
+#include <assert.h>
 
 namespace PUBLIC_TOOL{
 
@@ -37,6 +38,20 @@ namespace PUBLIC_TOOL{
 		 int ldb = (TransB == CblasNoTrans) ? N : K;
 		 cblas_dgemm(CblasRowMajor, TransA, TransB, M, N, K, alpha, A, lda, B,
 			 ldb, beta, C, N);
+	 }
+
+	 void printTensor(const float* ptr, const int N, const int C, const int H, const int W, const char* strings) {
+		 assert(N == 1);
+
+		 for(int c_idx = 0; c_idx < C; c_idx++) {
+		 	printf("%s channel %d\n", strings, c_idx);
+			for(int h_idx = 0; h_idx < H; h_idx++) {
+				for(int w_idx = 0; w_idx < W; w_idx++) {
+					printf("%f ", ptr[(c_idx*H + h_idx)*W + w_idx]);
+				}
+				printf("\n");
+			}
+		 }
 	 }
 
 
