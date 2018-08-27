@@ -3,6 +3,7 @@
 #include "../include/winograd_kernel.h"
 #include "../include/winograd_layer.h"
 #include "../include/direct_layer.h"
+#include "../include/simd_layer.h"
 #include "../include/tool.h"
 #include <iostream>
 #include <iomanip>
@@ -131,6 +132,22 @@ void testWinograd() {
 		tpad,
 		tbias
 	);
+
+	SIMD_KERNEL::SimdLayer<float> simd(
+		1,
+		tiH,
+		tiW,
+		tiC,
+		tkH,
+		tkW,
+		tsH,
+		tsW,
+		toC,
+		tpad,
+		tbias
+	);
+
+
 	PUBLIC_TOOL::printTensor(input, 1, tiC, tiW, tiW, "input");
 	PUBLIC_TOOL::printTensor(kernel, 1, tiC, tkH, tkW, "kernel");
 
@@ -139,22 +156,24 @@ void testWinograd() {
 	//std::shared_ptr<float> out = std::shared_ptr<Dtype>(new Dtype[m_oH*m_oW*conv_out_channels_]);
 
 	const float* output = wt8X8.get_inference_cpu(input, kernel, (float*)buffer); //
-
 	cout << "the first three elements and the last one of the wt8x8 result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "wt8x8");
 
 	output = wt6x6.get_inference_cpu(input, kernel, (float*)buffer); //
-
 	cout << "the first three elements and the last one of the wt6x6 result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "wt6x6");
 
 	output = direct.get_inference_cpu(input, kernel, (float*)buffer); //
-
 	cout << "the first three elements and the last one of the direct result:" << endl;
 	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
 	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "direct");
+
+	output = simd.get_inference_cpu(input, kernel, (float*)buffer); //
+	cout << "the first three elements and the last one of the simd result:" << endl;
+	//cout << output.get()[0] << " " << output.get()[1] << " " << output.get()[2] << " " << output.get()[toC*toH*toW - 1] << " " << endl;
+	PUBLIC_TOOL::printTensor(output, 1, toC, toH, toW, "simd");
 
 	delete[] buffer; 
 }
