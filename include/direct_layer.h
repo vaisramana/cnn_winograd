@@ -46,14 +46,7 @@ namespace DIRECT_KERNEL
 
 	private:
 
-		Dtype* m_inputOrg;
-		const Dtype* m_weightOrg;
-
-		Dtype* m_winogradWeight; // support NCHW storage
-		Dtype* m_winogradInput;
 		Dtype* m_output;
-
-		Dtype* m_col_buff;//buffer
 
 	public:
 
@@ -92,10 +85,6 @@ namespace DIRECT_KERNEL
 
 		//template <typename Dtype>
 		const Dtype* get_inference_cpu(Dtype* data, const Dtype* par, Dtype* col_buff) {
-
-			m_inputOrg = data;
-			m_weightOrg = par;
-			m_col_buff = col_buff;
 
 			/*
 			printf("input\n");
@@ -154,10 +143,6 @@ namespace DIRECT_KERNEL
 
 	public:
 		~DirectLayer() {
-			/*if (!m_winogradInput) delete[] m_winogradInput;
-			if (!m_winogradWeight) delete[] m_winogradWeight;*/
-			//printf("~DirectLayer\n");
-			//delete[] m_output;
 		}
 
 

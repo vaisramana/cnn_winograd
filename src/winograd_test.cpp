@@ -23,26 +23,27 @@ const int PRECISE = 8;
 #define KERNEL_INTEGER 1
 #define DATA_PRINT 0
 
-void testWinograd(int inH, int inW, int loop_num);
+void testWinograd(int inH, int inW, int inC, int outC, int loop_num);
 
 int main(int argc, const char * argv[])  {
 
 
 	WINOGRAD_KERNEL::winograd2D_initialize();
 
-	if(argc == 4) {
-		printf("profiling H %d W %d loop %d\n", atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
-		testWinograd(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+	if(argc == 6) {
+		printf("profiling H %d W %d inC %d outC %d loop %d\n", 
+				atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+		testWinograd(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
 	}
 	else {
-		testWinograd(IH, IW, 1);
+		testWinograd(IH, IW, CIN, COUT, 1);
 	}
 	
 
 	return 0;
 }
 
-void testWinograd(int inH, int inW, int loop_num) {
+void testWinograd(int inH, int inW, int inC, int outC, int loop_num) {
 
 	//int batch_size = 1;
 
@@ -55,8 +56,8 @@ void testWinograd(int inH, int inW, int loop_num) {
 	int tsW = 1;
 	int tsH = 1;
 
-	int tiC = CIN;
-	const int toC = COUT;
+	int tiC = inC;
+	const int toC = outC;
 
 	bool tbias = true;
 
@@ -141,7 +142,23 @@ void testWinograd(int inH, int inW, int loop_num) {
 		tbias
 	);
 
-	SIMD_KERNEL::SimdLayer<float> simd(
+	SIMD_KERNEL::SimdLayer<float> simd_2_tile(
+		SIMD_KERNEL::SIMD_2_TILE_PER_ITER,
+		1,
+		tiH,
+		tiW,
+		tiC,
+		tkH,
+		tkW,
+		tsH,
+		tsW,
+		toC,
+		tpad,
+		tbias
+	);
+
+	SIMD_KERNEL::SimdLayer<float> simd_1_tile(
+		SIMD_KERNEL::SIMD_1_TILE_PER_ITER,
 		1,
 		tiH,
 		tiW,
@@ -201,17 +218,32 @@ void testWinograd(int inH, int inW, int loop_num) {
 #endif
 
 
-	//simd
+	//simd_2_tile
 	start = PUBLIC_TOOL::get_current_time();
 	for(int i=0; i<loop_num; i++) {
-		output = simd.get_inference_cpu(input, kernel, (float*)buffer);
+		output = simd_2_tile.get_inference_cpu(input, kernel, (float*)buffer);
 	}
 	end = PUBLIC_TOOL::get_current_time();
-    PUBLIC_TOOL::benchmark("simd", start, end, loop_num);
-	simd.clear();
-	output = simd.get_inference_cpu(input, kernel, (float*)buffer);
+    PUBLIC_TOOL::benchmark("simd_2_tile", start, end, loop_num);
+	simd_2_tile.clear();
+	output = simd_2_tile.get_inference_cpu(input, kernel, (float*)buffer);
 #if DATA_PRINT	
-	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "simd");
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "simd_2_tile");
+#endif
+
+
+
+	//simd_1_tile
+	start = PUBLIC_TOOL::get_current_time();
+	for(int i=0; i<loop_num; i++) {
+		output = simd_1_tile.get_inference_cpu(input, kernel, (float*)buffer);
+	}
+	end = PUBLIC_TOOL::get_current_time();
+    PUBLIC_TOOL::benchmark("simd_1_tile", start, end, loop_num);
+	simd_1_tile.clear();
+	output = simd_1_tile.get_inference_cpu(input, kernel, (float*)buffer);
+#if DATA_PRINT	
+	PUBLIC_TOOL::print_tensor(output, 1, toC, toH, toW, "simd_1_tile");
 #endif
 
 	delete[] buffer; 

@@ -12,6 +12,11 @@
 namespace SIMD_KERNEL
 {
 
+	enum SIMD_ALG {
+		SIMD_1_TILE_PER_ITER = 0,
+		SIMD_2_TILE_PER_ITER,
+	};
+
 	template <typename Dtype>
 	class SimdLayer {
 
@@ -45,20 +50,15 @@ namespace SIMD_KERNEL
 		int m_pad;
 		bool m_bias;
 
+		SIMD_ALG m_alg;
+
 	private:
 
-		Dtype* m_inputOrg;
-		const Dtype* m_weightOrg;
-
-		Dtype* m_winogradWeight; // support NCHW storage
-		Dtype* m_winogradInput;
 		Dtype* m_output;
-
-		Dtype* m_col_buff;//buffer
 
 	public:
 
-		SimdLayer(int batch_size, int iH, int iW, int iC, int kH, int kW, int sH, int sW, int oC, int pad, bool bias = true) {
+		SimdLayer(SIMD_ALG alg, int batch_size, int iH, int iW, int iC, int kH, int kW, int sH, int sW, int oC, int pad, bool bias = true): m_alg(alg) {
 
 			//assert(kH == kW, "kernel 3x3 is the best choice, some errors may occur for other kernels");
 			assert(kH == kW);
@@ -93,8 +93,69 @@ namespace SIMD_KERNEL
 
 		}
 
-		//template <typename Dtype>
-		const Dtype* get_inference_cpu(Dtype* data, const Dtype* par, Dtype* col_buff) {
+		void simd_1_tile_alg(Dtype* data, const Dtype* par, Dtype* col_buff) {
+
+			const Dtype* kernel = par;
+
+			for (int p=0; p<conv_out_channels_; p++)
+			{
+				Dtype* out = &m_output[p*m_oH*m_oW];
+
+				for (int q=0; q<conv_in_channels_; q++)
+				{
+					Dtype* outptr = out;
+
+					const Dtype* img0 = &data[q*m_iH*m_iW];
+
+					const Dtype* kernel0 = kernel + p*conv_in_channels_*9  + q*9;
+
+					const Dtype* r0 = img0;
+					const Dtype* r1 = img0 + m_iW;
+					const Dtype* r2 = img0 + m_iW*2;
+
+					const Dtype* k0 = kernel0;
+					const Dtype* k1 = kernel0 + 3;
+					const Dtype* k2 = kernel0 + 6;
+
+					int i = 0;
+
+					for (; i < m_oH; i++)
+					{
+						int remain = m_oW;
+
+						for (; remain>0; remain--)
+						{
+							Dtype sum = 0;
+
+							sum += r0[0] * k0[0];
+							sum += r0[1] * k0[1];
+							sum += r0[2] * k0[2];
+							sum += r1[0] * k1[0];
+							sum += r1[1] * k1[1];
+							sum += r1[2] * k1[2];
+							sum += r2[0] * k2[0];
+							sum += r2[1] * k2[1];
+							sum += r2[2] * k2[2];
+
+							*outptr += sum;
+
+							r0++;
+							r1++;
+							r2++;
+							outptr++;
+						}
+
+						r0 += 2;
+						r1 += 2;
+						r2 += 2;
+					}
+
+				}
+			}
+		}
+
+
+		void simd_2_tile_alg(Dtype* data, const Dtype* par, Dtype* col_buff) {
 
 			const Dtype* kernel = par;
 
@@ -205,9 +266,17 @@ namespace SIMD_KERNEL
 
 				}
 			}
+		}
 
+		const Dtype* get_inference_cpu(Dtype* data, const Dtype* par, Dtype* col_buff) {
 
-
+			switch (m_alg) {
+			case SIMD_1_TILE_PER_ITER:
+				simd_1_tile_alg(data, par, col_buff); break;
+			case SIMD_2_TILE_PER_ITER:
+				simd_2_tile_alg(data, par, col_buff); break;
+				break;
+			}
 			return  m_output;
 		}
 
@@ -218,10 +287,6 @@ namespace SIMD_KERNEL
 
 	public:
 		~SimdLayer() {
-			/*if (!m_winogradInput) delete[] m_winogradInput;
-			if (!m_winogradWeight) delete[] m_winogradWeight;*/
-			//printf("~DirectLayer\n");
-			//delete[] m_output;
 		}
 
 
